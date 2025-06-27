@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recruiter Dashboard - FreshHire</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Apply the consistent background gradient */
+        body {
+            font-family: 'Inter', sans-serif; /* Using Inter font as per instructions */
+            background: linear-gradient(to right, #e0f2fe, #f3e8ff); /* Equivalent to bg-gradient-to-r from-blue-100 to-purple-100 */
+        }
+        /* Custom styles for rounded corners as per instructions */
+        .rounded, .rounded-lg, .rounded-md, .rounded-xl {
+            border-radius: 0.5rem; /* Default rounded */
+        }
+        .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .hover\:shadow-xl:hover { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        .transition { transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+
+        /* Custom scrollbar styles */
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 8px; /* width of the scrollbar */
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #f1f1f1; /* color of the tracking area */
+            border-radius: 10px;
+        }
+        .scrollbar-thumb-blue-500::-webkit-scrollbar-thumb {
+            background-color: #3b82f6; /* color of the scroll thumb */
+            border-radius: 10px; /* roundness of the scroll thumb */
+            border: 2px solid #f1f1f1; /* creates padding around scroll thumb */
+        }
+        .scrollbar-thumb-blue-500::-webkit-scrollbar-thumb:hover {
+            background-color: #2563eb; /* color of the scroll thumb on hover */
+        }
+    </style>
+    <!-- Firebase SDKs for Auth and App, and Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+</head>
+<body class="flex justify-center items-center min-h-screen p-4">
+    <!-- Main content area for the dashboard -->
+    <div id="dashboardContent" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-4xl text-center hidden">
+        <h1 class="text-3xl font-bold text-green-700 mb-2">Welcome, Recruiter!</h1>
+        <p class="text-gray-700 mb-6" id="userEmailDisplay"></p> <!-- Display user email here -->
+
+        <!-- Section to Post a New Job -->
+        <section class="mb-8 p-6 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4" id="formTitle">Post a New Job</h2>
+            <form id="postJobForm" class="space-y-4">
+                <input type="text" id="jobTitle" placeholder="Job Title" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                <textarea id="jobDescription" placeholder="Job Description" rows="4" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea>
+                <input type="text" id="jobLocation" placeholder="Location (e.g., Remote, New York)" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                <div class="flex space-x-2">
+                    <button type="submit" id="submitJobButton" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-semibold">Post Job</button>
+                    <button type="button" id="cancelEditButton" class="w-full bg-gray-400 text-white py-2 rounded-lg hover:bg-gray-500 transition font-semibold hidden">Cancel Edit</button>
+                </div>
+            </form>
+            <p id="postJobMessage" class="mt-2 text-sm text-center text-green-600 hidden"></p>
+        </section>
+
+        <!-- Section to See Current Jobs Posted -->
+        <section class="p-6 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Your Current Job Postings</h2>
+            <div id="jobListings" class="space-y-4 text-left">
+                <p class="text-gray-500 text-center">No job postings found or loading...</p>
+            </div>
+        </section>
+
+        <!-- Logout Button -->
+        <div class="mt-8">
+            <a href="#" id="logoutLink" class="text-blue-600 hover:underline font-medium">Logout</a>
+        </div>
+    </div>
+
+    <!-- Applicants Modal -->
+    <div id="applicantsModal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center z-50 hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl max-w-2xl w-full relative">
+            <button id="closeApplicantsModal" class="absolute top-4 right-4 text-gray-600 hover:text-gray-900 text-2xl font-bold">
+                &times;
+            </button>
+            <h2 class="text-3xl font-bold text-green-700 mb-6 text-center" id="applicantsModalTitle">Applicants for: Job Title</h2>
+            <div id="applicantsList" class="space-y-4 max-h-96 overflow-y-auto pr-2 scrollbar-thin">
+                <p class="text-gray-500 text-center">No applicants found for this job yet.</p>
+                <!-- Applicant cards will be loaded here -->
+            </div>
+            <p id="applicantsMessage" class="mt-4 text-sm text-center hidden"></p>
+        </div>
+    </div>
+
+    <!-- Loading/Unauthorized message -->
+    <div id="messageContainer" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md text-center">
+        <p id="statusMessage" class="text-lg text-gray-600">Checking authentication status...</p>
+    </div>
+
+    <script type="module">
+        // Your Firebase config (UPDATED for FreshHire-V2)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDM7usECuavmk9XQmsMlrmazdazzRNr7qc",
+            authDomain: "freshhire-v2.firebaseapp.com",
+            projectId: "freshhire-v2",
+            storageBucket: "freshhire-v2.firebasestorage.app",
+            messagingSenderId: "747621620674",
+            appId: "1:747621620674:web:3576dc06b0d4dc07ef545b",
+            measurementId: "G-XW34DBSN4H"
+        };
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        // getDocs and updateDoc are already imported
+        import { getFirestore, doc, getDoc, collection, addDoc, query, where, orderBy, deleteDoc, onSnapshot, serverTimestamp, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Get references to DOM elements
+        const dashboardContent = document.getElementById("dashboardContent");
+        const messageContainer = document.getElementById("messageContainer");
+        const statusMessage = document.getElementById("statusMessage");
+        const userEmailDisplay = document.getElementById("userEmailDisplay");
+        const logoutLink = document.getElementById("logoutLink");
+        const postJobForm = document.getElementById("postJobForm");
+        const formTitle = document.getElementById("formTitle");
+        const submitJobButton = document.getElementById("submitJobButton");
+        const cancelEditButton = document.getElementById("cancelEditButton");
+        const jobTitleInput = document.getElementById("jobTitle");
+        const jobDescriptionInput = document.getElementById("jobDescription");
+        const jobLocationInput = document.getElementById("jobLocation");
+        const jobListingsDiv = document.getElementById("jobListings");
+        const postJobMessage = document.getElementById("postJobMessage");
+
+        // Applicant modal elements
+        const applicantsModal = document.getElementById("applicantsModal");
+        const closeApplicantsModalButton = document.getElementById("closeApplicantsModal");
+        const applicantsModalTitle = document.getElementById("applicantsModalTitle");
+        const applicantsListDiv = document.getElementById("applicantsList");
+        const applicantsMessage = document.getElementById("applicantsMessage");
+
+        let currentRecruiterId = null;
+        let currentEditingJobId = null;
+
+        // Define possible application statuses (New)
+        const APPLICATION_STATUSES = [
+            "Applied",
+            "Reviewed",
+            "Interview Scheduled",
+            "Offer Extended",
+            "Rejected",
+            "Hired"
+        ];
+
+        // --- Helper function to show a temporary message ---
+        function showMessage(element, message, isError = false) {
+            element.textContent = message;
+            element.classList.remove('hidden');
+            element.classList.toggle('text-red-600', isError);
+            element.classList.toggle('text-green-600', !isError);
+            setTimeout(() => {
+                element.classList.add('hidden');
+                element.textContent = ''; // Clear message
+            }, 3000); // Hide after 3 seconds
+        }
+
+        // --- Function to reset the form to "Post New Job" mode ---
+        function resetJobForm() {
+            postJobForm.reset();
+            formTitle.textContent = "Post a New Job";
+            submitJobButton.textContent = "Post Job";
+            cancelEditButton.classList.add('hidden');
+            currentEditingJobId = null; // Clear the editing ID
+            showMessage(postJobMessage, ''); // Clear any lingering messages
+        }
+
+        // --- Authentication State Listener ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User is signed in. Check their role.
+                currentRecruiterId = user.uid; // Store the user's UID
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        if (userData.role === "recruiter") {
+                            userEmailDisplay.textContent = `Logged in as: ${user.email}`;
+                            messageContainer.classList.add("hidden");
+                            dashboardContent.classList.remove("hidden");
+                            // Load recruiter-specific job postings
+                            listenForJobPostings(currentRecruiterId); // Call function to listen for jobs
+                        } else {
+                            statusMessage.textContent = "Access Denied: You are not authorized as a Recruiter. Redirecting...";
+                            dashboardContent.classList.add("hidden");
+                            messageContainer.classList.remove("hidden");
+                            setTimeout(() => {
+                                signOut(auth); // Log them out
+                                window.location.href = "login-select.html";
+                            }, 3000);
+                        }
+                    } else {
+                        statusMessage.textContent = "User data not found. Please re-login. Redirecting...";
+                        dashboardContent.classList.add("hidden");
+                        messageContainer.classList.remove("hidden");
+                        setTimeout(() => {
+                            signOut(auth);
+                            window.location.href = "login-select.html";
+                        }, 3000);
+                    }
+                } catch (error) {
+                    console.error("Error fetching user role:", error);
+                    statusMessage.textContent = "Error checking user role. Please try again. Redirecting...";
+                    dashboardContent.classList.add("hidden");
+                    messageContainer.classList.remove("hidden");
+                    setTimeout(() => {
+                        signOut(auth);
+                        window.location.href = "login-select.html";
+                    }, 3000);
+                }
+            } else {
+                // User is signed out or not logged in. Redirect to login.
+                statusMessage.textContent = "You are not logged in. Redirecting...";
+                dashboardContent.classList.add("hidden");
+                messageContainer.classList.remove("hidden");
+                setTimeout(() => {
+                    window.location.href = "login-select.html";
+                }, 2000);
+            }
+        });
+
+        // --- Logout Event Listener ---
+        logoutLink.addEventListener("click", async (e) => {
+            e.preventDefault();
+            try {
+                await signOut(auth);
+                console.log("User signed out successfully.");
+                window.location.href = "login-select.html";
+            } catch (error) {
+                console.error("Error signing out:", error);
+                showMessage(postJobMessage, "Error signing out: " + error.message, true); // Use common message display
+            }
+        });
+
+        // --- Post/Update New Job Form Submission ---
+        postJobForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            if (!currentRecruiterId) {
+                showMessage(postJobMessage, "Error: User not authenticated. Please refresh.", true);
+                return;
+            }
+
+            const jobTitle = jobTitleInput.value.trim();
+            const jobDescription = jobDescriptionInput.value.trim();
+            const jobLocation = jobLocationInput.value.trim();
+
+            if (!jobTitle || !jobDescription) {
+                showMessage(postJobMessage, "Please fill in Job Title and Description.", true);
+                return;
+            }
+
+            try {
+                if (currentEditingJobId) {
+                    // Editing an existing job
+                    const jobRef = doc(db, "jobPostings", currentEditingJobId);
+                    await updateDoc(jobRef, {
+                        title: jobTitle,
+                        description: jobDescription,
+                        location: jobLocation
+                        // Do NOT update recruiterId or timestamp on edit, as they define ownership/creation time
+                    });
+                    showMessage(postJobMessage, "Job updated successfully!");
+                } else {
+                    // Posting a new job
+                    await addDoc(collection(db, "jobPostings"), {
+                        title: jobTitle,
+                        description: jobDescription,
+                        location: jobLocation,
+                        recruiterId: currentRecruiterId, // Associate job with the recruiter
+                        timestamp: serverTimestamp() // Firebase's server-side timestamp
+                    });
+                    showMessage(postJobMessage, "Job posted successfully!");
+                }
+                resetJobForm(); // Clear the form and reset mode
+            } catch (error) {
+                console.error("Error saving job:", error);
+                showMessage(postJobMessage, "Error saving job: " + error.message, true);
+            }
+        });
+
+        // --- Listen for Job Postings in Real-time ---
+        function listenForJobPostings(recruiterId) {
+            // Create a query to get only jobs posted by the current recruiter
+            const q = query(
+                collection(db, "jobPostings"),
+                where("recruiterId", "==", recruiterId),
+            );
+
+            // Set up a real-time listener
+            onSnapshot(q, (snapshot) => {
+                jobListingsDiv.innerHTML = ''; // Clear previous listings
+                resetJobForm(); // Ensure form is reset when jobs list updates
+
+                if (snapshot.empty) {
+                    jobListingsDiv.innerHTML = '<p class="text-gray-500 text-center py-4">No job postings found. Post one above!</p>';
+                    return;
+                }
+
+                let jobs = [];
+                snapshot.forEach((doc) => {
+                    jobs.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Sort jobs by timestamp in descending order on the client-side
+                jobs.sort((a, b) => {
+                    if (a.timestamp && b.timestamp) {
+                        return b.timestamp.toMillis() - a.timestamp.toMillis();
+                    }
+                    return 0; // Maintain order if timestamps are missing
+                });
+
+
+                jobs.forEach((job) => {
+                    const jobElement = document.createElement('div');
+                    jobElement.id = `job-${job.id}`; // Add an ID for easy removal
+                    jobElement.classList.add('bg-white', 'p-4', 'rounded-lg', 'shadow-md', 'flex', 'flex-col', 'md:flex-row', 'justify-between', 'items-start', 'md:items-center', 'space-y-2', 'md:space-y-0');
+
+                    const timestampDate = job.timestamp ? new Date(job.timestamp.toMillis()).toLocaleDateString() : 'N/A';
+
+                    jobElement.innerHTML = `
+                        <div class="text-left w-full md:w-3/4">
+                            <h3 class="text-xl font-semibold text-gray-900">${job.title}</h3>
+                            <p class="text-gray-700 mt-1">${job.description}</p>
+                            <p class="text-sm text-gray-500 mt-2">
+                                ${job.location ? `Location: ${job.location} | ` : ''} Posted: ${timestampDate}
+                            </p>
+                        </div>
+                        <div class="flex-shrink-0 mt-3 md:mt-0 flex space-x-2">
+                            <button data-job-id="${job.id}"
+                                    data-job-title="${job.title}"
+                                    data-job-description="${job.description}"
+                                    data-job-location="${job.location || ''}"
+                                    class="edit-job-btn bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition font-medium">
+                                Edit
+                            </button>
+                            <button data-job-id="${job.id}"
+                                    data-job-title="${job.title}"
+                                    class="view-applicants-btn bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition font-medium">
+                                View Applicants
+                            </button>
+                            <button data-job-id="${job.id}" class="delete-job-btn bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition font-medium">
+                                Mark Recruited / Delete
+                            </button>
+                        </div>
+                    `;
+                    jobListingsDiv.appendChild(jobElement);
+                });
+            }, (error) => {
+                console.error("Error listening for job postings:", error);
+                jobListingsDiv.innerHTML = '<p class="text-red-600 text-center py-4">Error loading job postings. Please try again.</p>';
+            });
+        }
+
+        // --- Function to fetch and display applicants for a specific job ---
+        async function fetchAndDisplayApplicants(jobId, jobTitle) {
+            applicantsModalTitle.textContent = `Applicants for: ${jobTitle}`;
+            applicantsListDiv.innerHTML = '<p class="text-gray-500 text-center">Loading applicants...</p>';
+            showMessage(applicantsMessage, ''); // Clear previous message
+            applicantsModal.classList.remove('hidden'); // Show the modal
+
+            try {
+                // Use onSnapshot here too, so changes in applications (e.g., withdraw) reflect in real-time
+                const q = query(collection(db, "applications"), where("jobId", "==", jobId));
+
+                onSnapshot(q, async (snapshot) => { // Made this callback async
+                    applicantsListDiv.innerHTML = ''; // Clear previous loading message
+
+                    if (snapshot.empty) {
+                        applicantsListDiv.innerHTML = '<p class="text-gray-500 text-center py-4">No applicants for this job yet.</p>';
+                        return;
+                    }
+
+                    let applicantPromises = [];
+                    snapshot.forEach((appDoc) => {
+                        const appData = appDoc.data();
+                        const applicationDocId = appDoc.id; // Get the application's document ID
+                        const seekerId = appData.seekerId;
+                        // Fetch seeker's profile details
+                        const seekerDocRef = doc(db, "users", seekerId);
+                        // Using getDoc for seeker data as it's a static profile fetch per applicant
+                        applicantPromises.push(getDoc(seekerDocRef).then(seekerDoc => {
+                            const seekerData = seekerDoc.exists() ? seekerDoc.data() : null;
+                            return { appData, seekerData, seekerId, applicationDocId }; // Pass applicationDocId
+                        }));
+                    });
+
+                    const applicants = await Promise.all(applicantPromises);
+
+                    if (applicants.length === 0) {
+                         applicantsListDiv.innerHTML = '<p class="text-gray-500 text-center py-4">No applicants found for this job yet.</p>';
+                         return;
+                    }
+
+                    applicants.forEach(({ appData, seekerData, seekerId, applicationDocId }) => { // Destructure applicationDocId
+                        const applicantElement = document.createElement('div');
+                        applicantElement.classList.add('bg-white', 'p-4', 'rounded-lg', 'shadow-md', 'flex', 'flex-col', 'text-left');
+
+                        const appliedDate = appData.applicationDate ? new Date(appData.applicationDate.toMillis()).toLocaleDateString() : 'N/A';
+
+                        // Display profile details
+                        const profileDetails = seekerData?.profile;
+                        const name = profileDetails?.name || 'N/A';
+                        const email = seekerData?.email || 'N/A'; // Email is stored directly in user doc, not in profile
+                        const gender = profileDetails?.gender || 'N/A';
+                        const university = profileDetails?.university || 'N/A';
+                        const course = profileDetails?.course || 'N/A';
+                        const branch = profileDetails?.branch || 'N/A';
+                        const cgpa = profileDetails?.cgpa || 'N/A';
+                        const graduationYear = profileDetails?.graduationYear || 'N/A';
+                        const location = profileDetails?.location || 'N/A';
+
+
+                        // Generate status options dynamically (New)
+                        let statusOptionsHtml = APPLICATION_STATUSES.map(status =>
+                            `<option value="${status}" ${appData.status === status ? 'selected' : ''}>${status}</option>`
+                        ).join('');
+
+
+                        applicantElement.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h3 class="text-xl font-semibold text-gray-900">${name} (${email})</h3>
+                                    <p class="text-sm text-gray-600">Applied on: ${appliedDate}</p>
+                                </div>
+                                <div class="flex flex-col items-end">
+                                    <label for="status-${applicationDocId}" class="text-sm font-medium text-gray-700 mb-1">Status:</label>
+                                    <select id="status-${applicationDocId}"
+                                            data-app-id="${applicationDocId}"
+                                            class="application-status-select bg-gray-100 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5">
+                                        ${statusOptionsHtml}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mt-3 text-sm text-gray-700 space-y-1">
+                                <p><span class="font-medium">Gender:</span> ${gender}</p>
+                                <p><span class="font-medium">University:</span> ${university}</p>
+                                <p><span class="font-medium">Course:</span> ${course} | <span class="font-medium">Branch:</span> ${branch}</p>
+                                <p><span class="font-medium">CGPA:</span> ${cgpa} | <span class="font-medium">Graduation Year:</span> ${graduationYear}</p>
+                                <p><span class="font-medium">Location:</span> ${location}</p>
+                            </div>
+                        `;
+                        applicantsListDiv.appendChild(applicantElement);
+                    });
+                }); // End of onSnapshot callback
+
+            } catch (error) {
+                console.error("Error fetching applicants:", error);
+                showMessage(applicantsMessage, "Error loading applicants: " + error.message, true);
+                applicantsListDiv.innerHTML = '<p class="text-red-600 text-center py-4">Error loading applicants.</p>';
+            }
+        }
+
+
+        // --- Event Delegation for Edit, View Applicants, and Delete Buttons ---
+        jobListingsDiv.addEventListener('click', async (e) => {
+            // Handle Edit Button Click
+            if (e.target.classList.contains('edit-job-btn')) {
+                const jobId = e.target.dataset.jobId;
+                const jobTitle = e.target.dataset.jobTitle;
+                const jobDescription = e.target.dataset.jobDescription;
+                const jobLocation = e.target.dataset.jobLocation;
+
+                // Populate the form with current job data
+                jobTitleInput.value = jobTitle;
+                jobDescriptionInput.value = jobDescription;
+                jobLocationInput.value = jobLocation;
+
+                // Change form title and button text for editing mode
+                formTitle.textContent = "Edit Job Posting";
+                submitJobButton.textContent = "Update Job";
+                cancelEditButton.classList.remove('hidden'); // Show cancel button
+                currentEditingJobId = jobId; // Store the ID of the job being edited
+                showMessage(postJobMessage, ''); // Clear any existing messages
+
+                // Scroll to the top of the form for better UX
+                postJobForm.scrollIntoView({ behavior: 'smooth' });
+
+            }
+            // Handle View Applicants Button Click
+            else if (e.target.classList.contains('view-applicants-btn')) {
+                const jobId = e.target.dataset.jobId;
+                const jobTitle = e.target.dataset.jobTitle;
+                fetchAndDisplayApplicants(jobId, jobTitle); // Call function to fetch and display applicants
+            }
+            // Handle Delete Button Click
+            else if (e.target.classList.contains('delete-job-btn')) {
+                const jobIdToDelete = e.target.dataset.jobId;
+                if (!jobIdToDelete) {
+                    showMessage(postJobMessage, "Error: Could not find job ID to delete.", true);
+                    return;
+                }
+
+                try {
+                    await deleteDoc(doc(db, "jobPostings", jobIdToDelete));
+                    showMessage(postJobMessage, "Job deleted successfully!");
+                } catch (error) {
+                    console.error("Error deleting job:", error);
+                    showMessage(postJobMessage, "Error deleting job: " + error.message, true);
+                }
+            }
+        });
+
+        // --- Handle Application Status Change (New) ---
+        applicantsListDiv.addEventListener('change', async (e) => {
+            if (e.target.classList.contains('application-status-select')) {
+                const appId = e.target.dataset.appId;
+                const newStatus = e.target.value;
+
+                if (!appId) {
+                    showMessage(applicantsMessage, "Error: Could not find application ID.", true);
+                    return;
+                }
+
+                showMessage(applicantsMessage, `Updating status to ${newStatus}...`, false);
+                e.target.disabled = true; // Disable dropdown during update
+
+                try {
+                    const appRef = doc(db, "applications", appId);
+                    await updateDoc(appRef, {
+                        status: newStatus
+                    });
+                    showMessage(applicantsMessage, "Status updated successfully!", false);
+                } catch (error) {
+                    console.error("Error updating application status:", error);
+                    showMessage(applicantsMessage, "Error updating status: " + error.message, true);
+                } finally {
+                    e.target.disabled = false; // Re-enable dropdown
+                }
+            }
+        });
+
+        // --- Close Applicants Modal Handler ---
+        closeApplicantsModalButton.addEventListener('click', () => {
+            applicantsModal.classList.add('hidden');
+        });
+
+        applicantsModal.addEventListener('click', (e) => {
+            if (e.target === applicantsModal) {
+                applicantsModal.classList.add('hidden');
+            }
+        });
+
+
+        // --- Cancel Edit Button Listener ---
+        cancelEditButton.addEventListener('click', () => {
+            resetJobForm();
+        });
+    </script>
+</body>
+</html>

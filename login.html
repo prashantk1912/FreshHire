@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+</head>
+<body class="bg-gradient-to-r from-blue-100 to-purple-100 flex justify-center items-center h-screen">
+
+  <div class="bg-white p-8 rounded-xl shadow-md w-80">
+    <h2 class="text-2xl font-bold mb-4 text-center" id="roleHeading">Login</h2>
+    <input id="email" type="email" placeholder="Email" class="w-full mb-4 p-2 border rounded" />
+    <input id="password" type="password" placeholder="Password" class="w-full mb-4 p-2 border rounded" />
+    <button id="loginBtn" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Login</button>
+  </div>
+
+  <script>
+    // Firebase Config (replace with your own)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDM7usECuavmk9XQmsMlrmazdazzRNr7qc",
+      authDomain: "freshhire-v2.firebaseapp.com",
+      projectId: "freshhire-v2",
+      storageBucket: "freshhire-v2.firebasestorage.app",
+      messagingSenderId: "747621620674",
+      appId: "1:747621620674:web:3576dc06b0d4dc07ef545b",
+      measurementId: "G-XW34DBSN4H"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    const auth = firebase.auth();
+
+    const role = new URLSearchParams(window.location.search).get('role');
+    const heading = document.getElementById("roleHeading");
+    if (role === "recruiter") heading.innerText = "Login as Recruiter";
+    else heading.innerText = "Login as Job Seeker";
+
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      auth.signInWithEmailAndPassword(email, password)
+        .then(userCredential => {
+          // Redirect based on role
+          if (role === "recruiter") window.location.href = "recruiter-dashboard.html";
+          else window.location.href = "seeker-dashboard.html";
+        })
+        .catch(error => {
+          alert("Login failed: " + error.message);
+        });
+    });
+  </script>
+</body>
+</html>

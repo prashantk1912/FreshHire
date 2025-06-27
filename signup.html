@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign Up - FreshHire</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+</head>
+<body class ="bg-gradient-to-r from-blue-100 to-purple-100 flex justify-center items-center h-screen">
+
+  <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
+    <h2 class="text-2xl font-bold text-center mb-6 text-blue-700">Create an Account</h2>
+    
+    <form id="signupForm" class="space-y-4">
+      <input type="email" id="email" placeholder="Email" required class="w-full px-4 py-2 border rounded" />
+      <input type="password" id="password" placeholder="Password" required class="w-full px-4 py-2 border rounded" />
+
+      <!-- Select Role -->
+      <select id="role" required class="w-full px-4 py-2 border rounded">
+        <option value="">Select Role</option>
+        <option value="seeker">Job Seeker</option>
+        <option value="recruiter">Recruiter</option>
+      </select>
+
+      <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Sign Up</button>
+    </form>
+
+    <p class="text-sm text-center text-gray-600 mt-4">
+      Already have an account? <a href="login.html" class="text-blue-600 hover:underline">Login</a>
+    </p>
+  </div>
+
+  <script type="module">
+    // Firebase config 
+    const firebaseConfig = {
+      apiKey: "AIzaSyDM7usECuavmk9XQmsMlrmazdazzRNr7qc",
+      authDomain: "freshhire-v2.firebaseapp.com",
+      projectId: "freshhire-v2",
+      storageBucket: "freshhire-v2.firebasestorage.app",
+      messagingSenderId: "747621620674",
+      appId: "1:747621620674:web:3576dc06b0d4dc07ef545b",
+      measurementId: "G-XW34DBSN4H"
+    };
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { getFirestore, setDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const signupForm = document.getElementById("signupForm");
+    signupForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const role = document.getElementById("role").value;
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Save role in Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          email,
+          role
+        });
+
+        // Redirect based on role
+        if (role === "seeker") {
+          window.location.href = "seeker-dashboard.html";
+        } else {
+          window.location.href = "recruiter-dashboard.html";
+        }
+      } catch (error) {
+        alert("Error: " + error.message);
+      }
+    });
+  </script>
+
+</body>
+</html>
